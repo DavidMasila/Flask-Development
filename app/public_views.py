@@ -142,3 +142,15 @@ def create_entry():
     print(req)
     res = make_response(jsonify({"message":"JSON RECEIVED"}), 200)
     return res
+
+#Flask Query Strings
+@app.route("/query")
+def query():
+    args = request.args
+    for k, v in args.items():
+        print(f"{k} : {v}")
+
+    # if "foo" in args:
+    #     foo = args.get('foo')
+    # print(foo)
+    return "Query Received", 200
