@@ -1,5 +1,5 @@
 from app import app 
-from flask import render_template
+from flask import render_template, request, redirect, jsonify, make_response
 from datetime import datetime
 
 #custom template 1
@@ -71,3 +71,61 @@ def jinja():
                            suspicious = suspicious
 
                            )
+
+@app.route("/access")
+def access():
+    return render_template("public/access.html")
+
+@app.route("/sign-up", methods=["GET","POST"])
+def sign_up():
+    if request.method == "POST":
+        req = request.form
+        username =  req['username']
+        email = req.get('email')
+        password =  request.form.get('password')
+        print(username, email, password)
+        return redirect(request.url)
+    return render_template("/public/sign_up.html")
+
+#pseudo database
+users = {
+    "mitsuhiko" : {
+        "name":"Armin Ronachar",
+        "bio":"Creator of flask framework",
+        "twitter_handle":"@mitsuhiko"
+    },
+    "gvanrossum": {
+        "name":"Guido Van Rossum",
+        "bio":"Creator of Python Programming Language",
+        "twitter_handle":"@gvanossum"
+    },
+    "elonmusk": {
+        "name":"Elon Musk",
+        "bio":"technology, entrepreneur, investor and engineer",
+        "twitter_handle":"@elonmusk"
+    }
+}
+
+@app.route("/profile/<username>")
+def profile(username):
+    user = None
+    if username in users:
+        user = users[username]
+    return render_template("public/profile.html", user=user, username = username)
+
+@app.route("/json", methods=["POST"])
+def json():
+    if request.is_json:
+        req = request.get_json()
+
+        response = {
+            "message":"Json received",
+            "name":req.get('name')
+        }
+
+        res = make_response(jsonify(response), 200)
+
+        return res
+    else:
+        res = make_response(jsonify({"message":"no JSON received"}), 400)
+        return res
