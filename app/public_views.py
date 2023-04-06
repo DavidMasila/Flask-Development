@@ -1,3 +1,4 @@
+from flask import send_from_directory, abort
 from app import app
 from flask import render_template, request, redirect, jsonify, make_response
 from datetime import datetime
@@ -86,6 +87,9 @@ def jinja():
 def access():
     return render_template("public/access.html")
 
+## message flashing
+ 
+from flask import flash
 
 @app.route("/sign-up", methods=["GET", "POST"])
 def sign_up():
@@ -94,27 +98,33 @@ def sign_up():
         username = req['username']
         email = req.get('email')
         password = request.form.get('password')
-        print(username, email, password)
-        return redirect(request.url)
+        if len(password) < 10:
+            flash("Password must be greater than 10 characters", "danger")
+            return redirect(request.url)
+        flash("Account created","success")
     return render_template("/public/sign_up.html")
 
 
 # pseudo database
+
 users = {
     "mitsuhiko": {
         "name": "Armin Ronachar",
         "bio": "Creator of flask framework",
-        "twitter_handle": "@mitsuhiko"
+        "twitter_handle": "@mitsuhiko",
+        "password":"flask"
     },
     "gvanrossum": {
         "name": "Guido Van Rossum",
         "bio": "Creator of Python Programming Language",
-        "twitter_handle": "@gvanossum"
+        "twitter_handle": "@gvanossum",
+        "password":"python"
     },
     "elonmusk": {
         "name": "Elon Musk",
         "bio": "technology, entrepreneur, investor and engineer",
-        "twitter_handle": "@elonmusk"
+        "twitter_handle": "@elonmusk",
+        "password":"twitter"
     }
 }
 
@@ -174,27 +184,32 @@ def query():
 
 # uploading fileswith flask
 
-app.config["IMAGE_UPLOADS"] = "/home/masila/flask development/app/static/img/uploads"
-app.config['ALLOWED_IMAGE_EXTENSIONS'] = ["PNG","JPG","JPEG","GIF"]
+
+app.config["IMAGE_UPLOADS"] = "/home/masila/flask_development/app/static/img/uploads"
+app.config['ALLOWED_IMAGE_EXTENSIONS'] = ["PNG", "JPG", "JPEG", "GIF"]
 app.config["MAX_IMAGE_FILESIZE"] = 0.5 * 1024 * 1024
 
-#function that checks the extensions of the image name uploaded to the server. 
+# function that checks the extensions of the image name uploaded to the server.
+
+
 def allowed_image(filename):
     if not "." in filename:
         return False
-    
+
     ext = filename.rsplit(".", 1)[1]
     if ext.upper() in app.config['ALLOWED_IMAGE_EXTENSIONS']:
         return True
     else:
         return False
 
+
 def allowed_image_filesize(filesize):
     if int(filesize) <= app.config["MAX_IMAGE_FILESIZE"]:
         return True
     else:
         return False
-    
+
+
 @app.route("/upload-image", methods=["GET", "POST"])
 def upload_image():
     if request.method == "POST":
@@ -206,22 +221,123 @@ def upload_image():
                 return redirect(request.url)
 
             image = request.files['image']
-            
-            #check whether image has a name
+
+            # check whether image has a name
             if image.filename == '':
                 print("Image must have a name")
                 return redirect(request.url)
-            
-            #controlling image type
-            #checking the file name not to be harmful
+
+            # controlling image type
+            # checking the file name not to be harmful
             if not allowed_image(image.filename):
                 print("That image file format is not allowed")
                 return redirect(request.url)
             else:
-                filename =  secure_filename(image.filename)
-                #if we want to save the image on our app folders
+                filename = secure_filename(image.filename)
+                # if we want to save the image on our app folders
                 image.save(os.path.join(app.config["IMAGE_UPLOADS"], filename))
             print("Image saved")
             return redirect(request.url)
-        
+
     return render_template("/public/upload_image.html")
+
+
+"""
+Converter types
+string:
+int:
+float:
+path:
+uuid:
+"""
+
+app.config['CLIENT_IMAGES'] = '/home/masila/flask_development/app/static/client/img'
+app.config['CLIENT_PDF'] = '/home/masila/flask_development/app/static/client/pdf'
+app.config['CLIENT_CSV'] = '/home/masila/flask_development/app/static/client/csv'
+
+@app.route("/get-image/<image_name>")
+def get_image(image_name):
+    try:
+        return send_from_directory(
+            app.config['CLIENT_IMAGES'], image_name, as_attachment=True)
+    except FileNotFoundError:
+        abort(404)
+
+@app.route("/get-pdf/<pdf_name>")
+def get_pdf(pdf_name):
+    try:
+        return send_from_directory(
+            app.config['CLIENT_PDF'], pdf_name, as_attachment=True)
+    except FileNotFoundError:
+        abort(404)
+
+@app.route("/get-csv/<csv_name>")
+def get_csv(csv_name):
+    try:
+        return send_from_directory(
+            app.config['CLIENT_CSV'], csv_name, as_attachment=True)
+    except FileNotFoundError:
+        abort(404)
+
+## working with cookies
+@app.route("/cookies")
+def cookies():
+    res = make_response("Cookies", 200)
+
+    res.set_cookie("flavour",
+                   value="chocolate chip",
+                   max_age=10,
+                   expires=None,
+                   path=request.path,
+                   domain=None,
+                   secure=False,
+                   httponly=False
+                   )
+    res.set_cookie("chocolate type","dark")
+    res.set_cookie("company","scorprog")
+
+
+    cookies = request.cookies
+    print(cookies)
+    print(cookies.get('company'))
+    return res
+
+## session object
+from flask import session, url_for
+@app.route("/sign-in", methods=["GET","POST"])
+def signin():
+    if request.method == "POST":
+        req = request.form 
+
+        username = req.get("username")
+        password = req.get("password")
+
+        if not username in users:
+            print("Username not in users")
+            return redirect(request.url)
+        else:
+            user = users[username]
+
+        if not password in user.get("password"):
+            print("password is incorrect")
+            return redirect(request.url)
+        else:
+            session["username"] = username
+            print("user added to session")
+            return redirect(url_for("user"))
+    return render_template("public/sign_in.html")
+
+@app.route("/user")
+def user():
+    if session.get('username', None) is not None:
+        username = session.get('username')
+        user = users[username]
+        return render_template("public/user.html", user=user)
+    else:
+        print("Username not found in session")
+        return redirect(url_for("signin"))
+
+@app.route("/sign-out")
+def signout():
+    session.pop('username', None)
+    return redirect(url_for('signin'))
