@@ -341,3 +341,4 @@ def user():
 def signout():
     session.pop('username', None)
     return redirect(url_for('signin'))
+
